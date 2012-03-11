@@ -1,0 +1,37 @@
+<config>
+	<server>
+		<connectiontype>tcpip</connectiontype>
+		<hostname>localhost</hostname>
+		<port>5526</port>
+		<secret>bandersnatch</secret>
+	</server>
+	<component>
+		 <name>bandersnatch@bandersnatch.localhost</name>
+	</component>
+	<mysql>
+		<server>localhost</server>
+		<dbname>bandersnatch</dbname>
+		<username>bandersnatch</username>
+		<password>bandersnatch</password>
+	</mysql>
+	<debug>
+		<level>0</level>
+		<file>stdout</file>
+	</debug>
+	<site>
+		<local_server>localhost</local_server>
+		<admin_jids>admin@localhost</admin_jids>
+		<confidential_jids>theboss@jabber.yourdomain.com</confidential_jids>
+		<ignore_jids>chatbot@jabber.yourdomain.com</ignore_jids>
+		<ignore_jids>bandersnatch@bandersnatch.jabber.yourdomain.com</ignore_jids>
+		<ignore_jids>headlines.jabber.yourdomain.com</ignore_jids>
+		<local_domains>conference.jabber.yourdomain.com</local_domains>
+		<local_domains>bandersnatch.jabber.yourdomain.com</local_domains>
+		<local_server>your.jabber.server</local_server>
+		<admin_jids>admin@your.jabber.server</admin_jids>
+		<confidential_jids>theboss@your.jabber.server</confidential_jids>
+		<ignore_jids>chatbot@your.jabber.server</ignore_jids>
+		<privacy>1</privacy>
+		<aggressive_presence>0</aggressive_presence>
+	</site>
+</config>

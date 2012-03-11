@@ -1,0 +1,712 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="file://localhost/C:/Program%20Files/Morphon/XML-Editor%203.1.4/Examples/docbook/docbook.css" type="text/css"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN" "file:///c:/docbook/dtd/docbookx.dtd" [
+<!ENTITY global_entity "global entity (can be included in every document)">
+<!ENTITY local_entity "local entity (defined per document)">
+]>
+<article>
+  <articleinfo>
+    <title>Bandersnatch Manual</title>
+    <author>
+      <firstname>David</firstname>
+      <surname>Young</surname>
+      <affiliation>
+        <address>davidy@funkypenguin.co.za</address>
+      </affiliation>
+    </author>
+    <revhistory>
+      <revision>
+        <revnumber>0.0.1</revnumber>
+        <date>2003-02-10</date>
+        <revremark>Initial Draft</revremark>
+      </revision>
+      <revision>
+        <revnumber>0.0.2</revnumber>
+        <date>2003-03-14</date>
+        <revremark>Updated name to Bandersnatch because of naming conflict</revremark>
+      </revision>
+      <revision>
+        <revnumber>0.0.3</revnumber>
+        <date>2004-04-04</date>
+        <revremark>Added bandersnatch2.pl, a port for jabberd2</revremark>
+      </revision>
+    </revhistory>
+    <abstract>
+      <para> Bandersnatch is tool to log Jabber instant messaging traffic, and to generate meaningful usage statistics. Bandersnatch is designed for use in a corporate intranet environment, by administrators who wish to monitor the use / abuse of their Jabber servers.</para>
+    </abstract>
+  </articleinfo>
+  <sect1 id="introduction">
+    <title>Introduction</title>
+    <para>Bandersnatch is intended to be a deterrent to corporate users abusing a Jabber system for personal purposes. It is designed around the "peer-policing" theory, which hypothesizes that: "<emphasis>If an individual is aware that their activities are publicly visible, they are likely to limit their activities to the public standard</emphasis>". </para>
+    <para>In other words, if your users know that their Jabber activity is logged, and that their peers can see how many remote (personal?) messages they've sent, they'll keep their behavior within reasonable boundaries. </para>
+    <sect2 id="theory">
+      <title>History</title>
+      <para> When I approached my company about implementing a Jabber system on our intranet, the first issue they raised was "can we monitor / log it?", and "how can we avoid abuse". Legitimate questions indeed. How to make instant-messaging available to 500-odd users, yet deter them from abusing the system.</para>
+      <para>At that time (and still today) Jabber had no built-in logging system. It logged sessions (logon / logoff) and errors, and it was suggested that parsing the debug output might yield some useful logs.</para>
+      <para>It became apparent that I'd need to present my company with a monitoring system, before they sanctioned the installation of a Jabber server. </para>
+      <para>I initially installed "msglog", a perl-based component that uses threading. After upgrading to perl 5.8.0 a few times, recompiling all my perl modules, breaking AMaViS, Sympa, and Nagios, I eventually got msglog working. Only to discover that it wasn't exactly what I wanted.</para>
+      <para>I'd previously installed Justin Mecham's Jogger, a jabber-based weblog. It's a fairly straightforward perl script, that sends a few queries to a database, and has a basic PHP frontend to view the blogs. It's a beautiful example of simplicity that works 100%</para>
+      <para>I reasoned that if it were possible for msglog to receive all Jabber traffic, then it must also be possible for Jogger to do so. Furthermore, if I could modify Jogger to log this traffic into the database, I could use any frontend to analyse the data.</para>
+      <para>Thus Bandersnatch was born :)</para>
+    </sect2>
+    <sect2 id="copyright">
+      <title>Copyright and License</title>
+      <para> Bandersnatch is Copyright 2003 by David Young.</para>
+      <para>This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.</para>
+      <para>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.</para>
+      <para>You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. </para>
+      <para>Contact the author (David Young) by email: <ulink url="mailto:davidy@funkypenguin.co.za">davidy@funkypenguin.co.za</ulink></para>
+    </sect2>
+    <sect2 id="credits">
+      <title>Credits</title>
+      <para>The Bandersnatch component is heavily based on Jogger, the jabber-based web blogger, by Justin Mecham. (<ulink url="http://jogger.jabber.org/about.php">http://jogger.jabber.org/about.php</ulink>)</para>
+      <para>Bandersnatch, of course, comes from Lewis Carrol's book, <emphasis>Through the Looking-Glass and What Alice Found There, 1872 <xref linkend="poem"/></emphasis></para>
+    </sect2>
+    <sect2 id="disclaimer">
+      <title>Disclaimer</title>
+      <para>No liability for the contents of this document can be accepted. Use the concepts, examples and information at your own risk. There may be errors and inaccuracies, that could be damaging to your system. Proceed with caution, and although this is highly unlikely, the author(s) do not take any responsibility.</para>
+      <para>All copyrights are held by their by their respective owners, unless specifically noted otherwise. Use of a term in this document should not be regarded as affecting the validity of any trademark or service mark. Naming of particular products or brands should not be seen as endorsements.</para>
+      <para>Bandersnatch is a tool to monitor, log, and intercept electronic communications. In many countries, this is illegal. In many corporations, users have to agree to and sign an "Internet Usage Policy", in which they give consent for such monitoring to take place. Be aware of any potential liabilities which you could incur by using this software. Check the applicable privacy laws. The author(s) do not take any responsibility for your use of this software.</para>
+    </sect2>
+    <sect2 id="bugs_and_stuff">
+      <title>Bug Reporting</title>
+      <para> I'm fairly confident that Bandersnatch, and this document, contain bugs. Hopefully they're not serious ones. Maybe they're cute. It's quite normal, and part of the life-cycle of the software :) - If you find any bugs, either email the author (<ulink url="mailto:davidy@funkypenguin.co.za">davidy@funkypenguin.co.za</ulink>) or, preferable, log them on Jabberstudio's excellent bug-tracking system at <ulink url="http://www.jabberstudio.org/projects/Bandersnatch/bugs">http://www.jabberstudio.org/projects/Bandersnatch/bugs</ulink></para>
+    </sect2>
+  </sect1>
+  <sect1 id="quick_start">
+    <title>Quick-start</title>
+    <sect2>
+      <title>jabberd 1.4</title>
+      <note>
+        <para>These quick-start instructions pertain to the jabber 1.4.x series, the instructions for jabberd2 servers are in the following section.</para>
+      </note>
+      <para>If you're a seasoned jabber administrator, who knows their <filename>jabber.xml</filename> file backwards, you may want to skip all the details below, and just go ahead with the installation. Below are a few quick-start instructions to get you going:</para>
+      <para>Add the following to the <emphasis>&lt;jsm&gt;</emphasis> section of <filename>jabber.xml</filename>:</para>
+      <screen>&lt;archive&gt;                                          
+&lt;service&gt;bandersnatch.jabber.yourdomain.com&lt;/service&gt; 
+&lt;/archive&gt;
+
+&lt;presence&gt;                                                                                             
+&lt;bcc&gt;bandersnatch@bandersnatch.jabber.yourdomain.com&lt;/bcc&gt;
+&lt;/presence&gt;</screen>
+      <para>Add the following to the <emphasis>&lt;service&gt;</emphasis> section of <filename>jabber.xml</filename>:</para>
+      <screen>&lt;service id="bandersnatch.jabber.yourdomain.com"&gt;
+	&lt;accept&gt;                  
+		&lt;ip&gt;127.0.0.1&lt;/ip&gt;
+		&lt;port&gt;5526&lt;/port&gt;
+		&lt;secret&gt;bandersnatch&lt;/secret&gt;
+	&lt;/accept&gt;          
+	&lt;host&gt;bandersnatch.jabber.yourdomain.com&lt;/host&gt;  
+&lt;/service&gt;</screen>
+      <para>Edit the included <filename>config.xml</filename> to suit.</para>
+      <para>Create the mysql database</para>
+      <screen># mysql &lt; bandersnatch.sql</screen>
+      <para>Run the component:</para>
+      <screen># ./bandersnatch.pl config.xml</screen>
+      <para>For the frontend, create an alias to Bandersnatch's <filename>frontend/htdocs</filename>:</para>
+      <screen>&lt;IfModule mod_alias.c&gt;        #     
+
+# Note that if you include a trailing blah blah blah...
+
+Alias /logs "/usr/local/jabber/bandersnatch/frontend/htdocs"    
+
+# More blah blah blah...
+
+&lt;/IfModule&gt;  # End of aliases.
+</screen>
+    </sect2>
+    <sect2>
+      <title>jabberd 2</title>
+      <note>
+        <para>These quick-start instructions pertain to the jabberd2 series ONLY</para>
+      </note>
+      <para>The setup for jabberd2 is rather different, but far simpler :) Make sure you have a user defined in <filename>router-users.xml</filename> for bandersnatch:</para>
+      <screen> 
+&lt;user&gt;
+      &lt;name&gt;bandersnatch.jabber.yourdomain.com&lt;/name&gt;
+      &lt;secret&gt;bandersnatch&lt;/secret&gt;
+&lt;/user&gt; 
+ </screen>
+      <para>... and grant that user access to bind with the "log" option, in <filename>router.xml</filename>:</para>
+      <screen>    
+&lt;acl type='log'&gt;
+        &lt;user&gt;bandersnatch.jabber.yourdomain.com&lt;/user&gt;
+&lt;/acl&gt;  
+</screen>
+      <para>Edit the included <filename>config.xml</filename> to suit. The default port has changed from jabber 1.4.x, the port is now 5347. Make sure your component name is the same as the username you defined in <filename>router-users.xml</filename> and <filename>router.xml.</filename></para>
+      <para>Create the mysql database (only if it doesn't already exist!)</para>
+      <screen># mysql &lt; bandersnatch.sql</screen>
+      <para>Run the component:</para>
+      <screen># ./bandersnatch2.pl config.xml</screen>
+      <para>For the frontend, create an alias to Bandersnatch's <filename>frontend/htdocs</filename>:</para>
+      <screen>&lt;IfModule mod_alias.c&gt;        #     
+
+# Note that if you include a trailing blah blah blah...
+
+Alias /logs "/usr/local/jabber/bandersnatch/frontend/htdocs"    
+
+# More blah blah blah...
+
+&lt;/IfModule&gt;  # End of aliases.
+</screen>
+    </sect2>
+  </sect1>
+  <sect1 id="install_component">
+    <title>Installing the jabber component</title>
+    <para>The "non-quick-start" instructions start here :)</para>
+    <para></para>
+    <para>The jabber component (<filename>bandersnatch.pl</filename>) is a script that runs as a "<emphasis>component</emphasis>" to the jabber server. Upon initialization, the component connects to the server on a predefined port, and authenticates with a predefined "secret".</para>
+    <sect2>
+      <title>Prerequisites</title>
+      <para>In order to use the jabber component with jabberd 1.4.x, you'll need the following:</para>
+      <itemizedlist>
+        <listitem>
+          <para>A jabber server running either jabberd version 1.4.x (<ulink url="http://jabberd.jabberstudio.org/downloads/">http://jabberd.jabberstudio.org/downloads/</ulink>) </para>
+        </listitem>
+        <listitem>
+          <para>A DBI-compatible SQL server (currently only tested with MySQL)</para>
+        </listitem>
+        <listitem>
+          <para>Perl v 5.6.1 (<ulink url="http://www.cpan.org">http://www.cpan.org</ulink>)</para>
+        </listitem>
+        <listitem>
+          <para>Perl module: Net::Jabber &gt; 1.0024 (<ulink url="http://search.cpan.org/author/REATMON/Net-Jabber-1.28/">http://search.cpan.org/author/REATMON/Net-Jabber-1.28/</ulink>)</para>
+        </listitem>
+        <listitem>
+          <para>Perl module: XML::Stream 1.16 (<ulink url="http://search.cpan.org/author/REATMON/XML-Stream-1.16/">http://search.cpan.org/author/REATMON/XML-Stream-1.16/</ulink>)</para>
+        </listitem>
+        <listitem>
+          <para>Perl module DBI (mysql) (<ulink url="http://search.cpan.org/author/TIMB/DBI-1.32">http://search.cpan.org/author/TIMB/DBI-1.32/</ulink>)</para>
+        </listitem>
+      </itemizedlist>
+      <para>In order to use the jabber component with jabberd 2.x, you'll need the following:</para>
+      <itemizedlist>
+        <listitem>
+          <para>A jabber server running either jabberd version 1.4.x (<ulink url="http://jabberd.jabberstudio.org/downloads/">http://jabberd.jabberstudio.org/downloads/</ulink>) </para>
+        </listitem>
+        <listitem>
+          <para>A DBI-compatible SQL server (currently only tested with MySQL)</para>
+        </listitem>
+        <listitem>
+          <para>Perl v 5.6.1 (<ulink url="http://www.cpan.org">http://www.cpan.org</ulink>)</para>
+        </listitem>
+        <listitem>
+          <para>Perl POE (http://poe.perl.org)</para>
+        </listitem>
+        <listitem>
+          <para>Perl module: XML::Stream 1.16 (<ulink url="http://search.cpan.org/author/REATMON/XML-Stream-1.16/">http://search.cpan.org/author/REATMON/XML-Stream-1.16/</ulink>)</para>
+        </listitem>
+        <listitem>
+          <para>Perl module DBI (mysql) (<ulink url="http://search.cpan.org/author/TIMB/DBI-1.32">http://search.cpan.org/author/TIMB/DBI-1.32/</ulink>) </para>
+        </listitem>
+        <listitem>
+          <para>Perl module POE::Component::Jabber (<ulink url="http://www.jabberstudio.org/projects/pcj/project/view.php">http://www.jabberstudio.org/projects/pcj/project/view.php</ulink>) PCJ is not yet available in a downloadable format, until such time as it is, you will need to download it from CVS. (<ulink url="http://www.jabberstudio.org/cvs.php">http://www.jabberstudio.org/cvs.php</ulink>)</para>
+        </listitem>
+      </itemizedlist>
+      <para>Once you've downloaded the bandersnatch tarball, change to your jabber root directory, and unpack the tarball. A subdirectory called "<filename>bandersnatch</filename>" will be created.</para>
+    </sect2>
+    <sect2>
+      <title>Jabber config file(s)</title>
+      <sect3>
+        <title>Jabberd 1.4.x</title>
+        <sect4>
+          <title>Edit: jabber.xml</title>
+          <para><filename>jabber.xml</filename> is the file which configures your jabber server. You have to define a "service" entry for the Bandersnatch component, so that the server will accept a connection from the component. You'll also add some lines which instruct the server to forward messages to the component for logging.</para>
+        </sect4>
+        <sect4>
+          <title>&lt;jsm&gt; section</title>
+          <para>The following six lines are how Bandersnatch obtains data to log. The <emphasis>&lt;archive&gt;</emphasis> tag instructs jabber to forward all messages to Bandersnatch's component, and the <emphasis>&lt;bcc&gt;</emphasis> tag instructs jabber to forward all "presence" messages to Bandersnatch's JID.</para>
+          <screen>
+&lt;archive&gt;                                          
+&lt;service&gt;bandersnatch.jabber.yourdomain.com&lt;/service&gt; 
+&lt;/archive&gt;
+
+&lt;presence&gt;                                                                                             
+&lt;bcc&gt;bandersnatch@bandersnatch.jabber.yourdomain.com&lt;/bcc&gt;
+&lt;/presence&gt;
+</screen>
+          <para>Insert the tags above (archive &amp; bcc) into your jabber.xml, after the &lt;<emphasis>browse</emphasis>&gt; section, just before the end of the &lt;<emphasis>jsm</emphasis>&gt; section (below), and change the appropriate values for your site.</para>
+          <screen>
+	blah blah blah ...end of &lt;service/&gt; examples --&gt;          
+&lt;/browse&gt;      
+			
+## Add archive and bcc here! ##	
+			
+&lt;/jsm&gt;        
+	&lt;!--      The following section dynamically loads the individual     
+	 modules that make up the session manager. Remove or blah blah blah...  </screen>
+        </sect4>
+        <sect4>
+          <title>&lt;service&gt; section</title>
+          <para>The following is a service definition for Bandersnatch. Insert it into the <emphasis>&lt;service&gt;</emphasis> section of your jabber.xml (Between &lt;<emphasis>service</emphasis>&gt; and &lt;<emphasis>/service</emphasis>&gt;), and change the appropriate values for your site.</para>
+          <screen>&lt;service id="bandersnatch.jabber.yourdomain.com"&gt;
+	&lt;accept&gt;                  
+		&lt;ip&gt;127.0.0.1&lt;/ip&gt;
+		&lt;port&gt;5526&lt;/port&gt;
+		&lt;secret&gt;bandersnatch&lt;/secret&gt;
+	&lt;/accept&gt;          
+	&lt;host&gt;bandersnatch.jabber.yourdomain.com&lt;/host&gt;  
+&lt;/service&gt;</screen>
+        </sect4>
+      </sect3>
+      <sect3>
+        <title>Jabberd 2</title>
+        <sect4>
+          <title>Edit: router-users.xml</title>
+          <para>The jabberd2 server is divided into several parts, each of which handle a different function of the "jabber server". The part that we're concerned about is the router, which is defined by the files below.</para>
+        </sect4>
+        <sect4>
+          <title>router-users.xml</title>
+          <para>Before we can grant bandersnatch permission to connect to the jabber server, we first have to define a "user", so that the router can recognize and authenticate our connection. Your router-users.xml file probably already has a default user in it. Add a user for bandersnatch by adding the following lines:<emphasis></emphasis><emphasis></emphasis></para>
+          <screen>
+&lt;user&gt;
+      &lt;name&gt;bandersnatch.jabber.yourdomain.com&lt;/name&gt;
+      &lt;secret&gt;bandersnatch&lt;/secret&gt;
+&lt;/user&gt; 
+</screen>
+        </sect4>
+        <sect4>
+          <title>router.xml</title>
+          <para>Now that we have create a user for bandersnatch, we need to tell the router that this component may bind with the "log" option, allowing it to see all jabber traffic. Edit the <filename>router.xml</filename> file, and add the following (it's probably already there in some format, but commented out) to the <emphasis>aci </emphasis>section. (3 lines from the bottom, in my file) <emphasis></emphasis><emphasis></emphasis><emphasis></emphasis></para>
+          <screen>
+&lt;acl type='log'&gt;
+        &lt;user&gt;bandersnatch.jabber.yourdomain.com&lt;/user&gt;
+&lt;/acl&gt;  					
+					</screen>
+        </sect4>
+      </sect3>
+    </sect2>
+    <sect2>
+      <title>Edit: config.xml</title>
+      <para>Modify the included file <filename>config.xml</filename>. The file is divided into five primary sections: <emphasis>server</emphasis>, <emphasis>component</emphasis>, <emphasis>mysql</emphasis>, <emphasis>debug</emphasis>, and <emphasis>site</emphasis>. Change the following values where appropriate, or leave the default options set.</para>
+      <sect3>
+        <title>server</title>
+        <para>The server options define how the Bandersnatch component is going to connect to the jabber server. The <emphasis>&lt;secret&gt;</emphasis> and <emphasis>&lt;port&gt;</emphasis> options can be set to any arbitrary value, but they must correspond to the <emphasis>&lt;service&gt;</emphasis> entry in jabber.xml above.</para>
+        <screen>&lt;config&gt;
+	&lt;server&gt;
+		&lt;connectiontype&gt;tcpip&lt;/connectiontype&gt;
+		&lt;hostname&gt;localhost&lt;/hostname&gt; 
+		&lt;port&gt;5526&lt;/port&gt;
+		&lt;secret&gt;bandersnatch&lt;/secret&gt;         
+	&lt;/server&gt;</screen>
+        <itemizedlist>
+          <listitem>
+            <para>hostname</para>
+            <para></para>
+            <para>The hostname of your jabber server. This is the jabber server that the component will connect to. (<emphasis>default: localhost</emphasis>)</para>
+          </listitem>
+          <listitem>
+            <para>port</para>
+            <para></para>
+            <para>The port on the server to which the component will connect. (<emphasis>default: 5526 for jabber 1.4.x, and 5347 for jabberd2</emphasis>).</para>
+          </listitem>
+          <listitem>
+            <para>secret</para>
+            <para></para>
+            <para>The "secret" which the component will use to authenticate with the server. (<emphasis>default: bandersnatch</emphasis>).</para>
+          </listitem>
+          <listitem>
+            <para>connectiontype</para>
+            <para></para>
+            <para>The type of connection which the component will establish to the server. (<emphasis>default: tcpip</emphasis>)</para>
+          </listitem>
+        </itemizedlist>
+      </sect3>
+      <sect3>
+        <title>component</title>
+        <screen>	&lt;component&gt; 
+		&lt;name&gt;bandersnatch@bandersnatch.jabber.yourdomain.com&lt;/name&gt;
+	&lt;/component&gt;</screen>
+        <itemizedlist>
+          <listitem>
+            <para>name</para>
+            <para></para>
+            <para>Bandersnatch's JID. When sending messages to users, this is the jabber address they will originate from. With jabberd2, this is also the username that bandersnatch uses to bind to the router. </para>
+          </listitem>
+        </itemizedlist>
+      </sect3>
+      <sect3>
+        <title>mysql</title>
+        <screen>	&lt;mysql&gt;
+		&lt;server&gt;localhost&lt;/server&gt;
+		&lt;dbname&gt;bandersnatch&lt;/dbname&gt; 
+		&lt;username&gt;bandersnatch&lt;/username&gt;
+		&lt;password&gt;bandersnatch&lt;/password&gt;
+	&lt;/mysql&gt;</screen>
+        <itemizedlist>
+          <listitem>
+            <para>server</para>
+            <para></para>
+            <para>The hostname of the mysql server that Bandersnatch will use. (<emphasis>default: localhost</emphasis>)</para>
+          </listitem>
+          <listitem>
+            <para>dbname</para>
+            <para></para>
+            <para>The name of the database that Bandersnatch will use. (<emphasis>default: bandersnatch</emphasis>)</para>
+          </listitem>
+          <listitem>
+            <para>username</para>
+            <para></para>
+            <para>The username that Bandersnatch will use to connect to the database. (<emphasis>default: bandersnatch</emphasis>)</para>
+          </listitem>
+          <listitem>
+            <para>password</para>
+            <para></para>
+            <para>The password that Bandersnatch will use to connect to the database. (<emphasis>default: bandersnatch</emphasis>)</para>
+          </listitem>
+        </itemizedlist>
+      </sect3>
+      <sect3>
+        <title>debug</title>
+        <screen>	&lt;debug&gt;                  
+		&lt;level&gt;0&lt;/level&gt;                  
+		&lt;file&gt;stdout&lt;/file&gt;          
+	&lt;/debug&gt;</screen>
+        <itemizedlist>
+          <listitem>
+            <para>level</para>
+            <para></para>
+            <para>The level of debug verbosity that you want Bandersnatch to output (<emphasis>default: 0</emphasis>).</para>
+          </listitem>
+          <listitem>
+            <para>file</para>
+            <para></para>
+            <para>The file to which Bandersnatch should dump its debug output. If this value is set to "<emphasis>stdout</emphasis>", the debug output will be written to stdout, and not logged anywhere. This is very useful when managing the jabber processes via daemontools, because multilog creates logfiles from stdout. (<emphasis>default: stdout</emphasis>)</para>
+          </listitem>
+        </itemizedlist>
+      </sect3>
+      <sect3>
+        <title>site</title>
+        <screen>	&lt;site&gt;                  
+		&lt;local_server&gt;jabber.yourdomain.com&lt;/local_server&gt; 
+		&lt;local_domains&gt;conference.jabber.yourdomain.com&lt;/local_domains&gt; 
+		&lt;admin_jids&gt;davidy@jabber.yourdomain.com&lt;/admin_jids&gt; 
+		&lt;ignore_jids&gt;chatbot@jabber.yourdomain.com&lt;/ignore_jids&gt; 
+		&lt;ignore_jids&gt;headlines.jabber.yourdomain.com&lt;/ignore_jids&gt;  
+		&lt;privacy&gt;0&lt;/privacy&gt;         
+		&lt;aggressive_presence&gt;0&lt;/aggressive_presence&gt;         		
+	&lt;/site&gt;  
+&lt;/config&gt;</screen>
+        <itemizedlist>
+          <listitem>
+            <para>local_server</para>
+            <para></para>
+            <para>The full name of your local server. Bandersnatch will use this value to determine which messages are local vs. remote, and to determine whose presence changes to log. (We don't want to log presence for remote users!)</para>
+          </listitem>
+          <listitem>
+            <para>local_domains</para>
+            <para></para>
+            <para>A list (you can use the tag more than once) of domains considered "<emphasis>local</emphasis>". For example, you might want messages involving <emphasis>smtp.jabber.yourdomain.com</emphasis>, and <emphasis>conference.jabber.yourdomain.com</emphasis> to reflect as "<emphasis>local</emphasis>" in your stats. This list will automatically include the name of the local server (above).</para>
+          </listitem>
+          <listitem>
+            <para>admin_jids</para>
+            <para></para>
+            <para>A list (you can use the tag more than once) of JID's that Bandersnatch should consider "admins". Normally, when a user sends a jabber message to Bandersnatch, they received their day's statistics in return. Administrators can retrieve more detailed statistics. (Currently (<emphasis>v0.0.1</emphasis>), administrators only receive a "<emphasis>top 20 user list</emphasis>")</para>
+          </listitem>
+          <listitem>
+            <para>ignore_jids</para>
+            <para></para>
+            <para>A list (you can use the tag more than once) of JIDs that Bandersnatch should ignore. Bandersnatch will not log any messages sent to or from these JIDs. It's sometimes helpful to eliminate "noisy" services from your stats. Bandersnatch's own JID (<emphasis>component--&gt; name above</emphasis>) will be automatically included in this list.</para>
+          </listitem>
+          <listitem>
+            <para>privacy</para>
+            <para></para>
+            <para>Your preferred privacy mode. (<xref linkend="privacy"/>) Acceptable values range from 0 to 3. (default: 0) </para>
+          </listitem>
+          <listitem>
+            <para>aggressive_presence</para>
+            <para></para>
+            <para>Enable or disable aggressive presence. (<xref linkend="aggressive_presence"/>) Acceptable values are 0 and 1. (default: 0)</para>
+          </listitem>
+        </itemizedlist>
+      </sect3>
+    </sect2>
+    <sect2>
+      <title>MySQL Database</title>
+      <para>Create the required MySQL database and user accounts. Create the database structure by importing <filename>bandersnatch.sql</filename>.</para>
+      <screen># mysql &lt; bandersnatch.sql</screen>
+      <para>Bandersnatch's database consists of four tables. The following briefly describes each table.</para>
+      <itemizedlist>
+        <listitem>
+          <para>message</para>
+          <para></para>
+          <para>All messages are logged into this table. The message_timestamp field automatically "timestamps" the record when it is inserted. Records are never deleted or updated in this table, so it will continue to grow in size. Future versions will include "archiving" scripts to delete any logs older than a given period. Indexes are created on message_from, message_to, and message_timestamp.</para>
+        </listitem>
+        <listitem>
+          <para>presence</para>
+          <para></para>
+          <para>All presence changes are logged into this table. The presence_timestamp field automatically "timestamps" the record when it is inserted. Records are never deleted or updated in this table, so it will continue to grow in size. Future versions will include "archiving" scripts to delete any logs older than a given period. An index is created on presence_timestamp.</para>
+        </listitem>
+        <listitem>
+          <para>user</para>
+          <para></para>
+          <para>The user table is used to keep track of which users' current status, and which users are subscribed to Bandersnatch's presence. All the users in the table are reset to "offline" every time Bandersnatch starts, and are updated to "online" whenever they send a message. New records are only inserted when they don't exist, and this table will never be larger than your total amount of users.</para>
+        </listitem>
+        <listitem>
+          <para>auth</para>
+          <para></para>
+          <para>This table is only used by Bandersnatch's PHP frontend, to determine which users are allowed to login as "admin", and read message logs. Bandersnatch has no functionality to manipulate this table, it must be edited via a SQL interface. (phpMyAdmin - <ulink url="http://www.phpmyadmin.net/">http://www.phpmyadmin.net/</ulink>). </para>
+        </listitem>
+      </itemizedlist>
+    </sect2>
+    <sect2>
+      <title>Running the component</title>
+      <sect3>
+        <title>Jabberd 1.4.x</title>
+        <para>Start Bandersnatch by running <command>bandersnatch</command>, and passing the <emphasis>config.xml</emphasis> as a command-line argument:</para>
+        <screen># ./bandersnatch config.xml</screen>
+      </sect3>
+      <sect3>
+        <title>Jabberd 2.x</title>
+        <para>Start Bandersnatch by running <command>bandersnatch2.pl</command>, and passing the <emphasis>config.xml</emphasis> as a command-line argument:</para>
+        <screen># ./bandersnatch2.pl config.xml</screen>
+      </sect3>
+    </sect2>
+  </sect1>
+  <sect1 id="install_frontend">
+    <title>Installing the Bandersnatch PHP frontend</title>
+    <para>The PHP frontend is an optional interface to Bandersnatch's logs. I.e.: You don't need the frontend to run Bandersnatch. That said, of course you should use it. The whole purpose of Bandersnatch is to provide well-presented, useful statistics, and that's exactly what the frontend does :)</para>
+    <sect2>
+      <title>Prerequisites</title>
+      <para>In order to use the jabber component, you'll need the following:</para>
+      <itemizedlist>
+        <listitem>
+          <para>PHP 4</para>
+        </listitem>
+        <listitem>
+          <para>PEAR DB 1.3 (included with PHP 4.3.0)</para>
+        </listitem>
+        <listitem>
+          <para>PEAR HTML_Template_IT 1.0.0</para>
+        </listitem>
+        <listitem>
+          <para>PEAR Auth 1.1.1</para>
+        </listitem>
+      </itemizedlist>
+      <para>Instructions on downloading / installing PEAR libraries can be found at <ulink url="http://pear.php.net/manual/en/installation.php">http://pear.php.net/manual/en/installation.php</ulink></para>
+    </sect2>
+    <sect2>
+      <title>Edit: config.inc.php</title>
+      <para>Edit the includes/config.inc.php file, and set the following variables to suit your site:</para>
+      <screen>
+$config['template'] 		= 'default.tpl.htm';
+$config['limit'] 		= '50';
+
+$config['database_type'] 	= 'mysql';
+$config['database_host'] 	= 'localhost';
+$config['database_table'] 	= 'bandersnatch';
+$config['database_user'] 	= 'bandersnatch';
+$config['database_password'] 	= 'bandersnatch';
+
+$config['local_server'] 	= "jabber.yourdomain.com";
+$config['local_domains']	= array(
+		'jabber.yourdomain.com',
+		'conference.jabber.yourdomain.com');
+									
+$config['local_transports'] = array(
+		'msn' 		=&gt; 'msn.jabber.yourdomain.com',
+		'icq' 		=&gt; 'icq.jabber.yourdomain.com',
+		'aim' 		=&gt; 'aim.jabber.yourdomain.com',
+		'yahoo' 	=&gt; 'yahoo.jabber.yourdomain.com',
+		'rss' 		=&gt; 'headlines.jabber.yourdomain.com',
+		'groupchat' 	=&gt; 'conference.jabber.yourdomain.com');
+			</screen>
+      <itemizedlist>
+        <listitem>
+          <para>$config['template']</para>
+          <para></para>
+          <para>The filename of the template to use. (<emphasis>default: </emphasis><filename>default.tpl.htm</filename>)</para>
+        </listitem>
+        <listitem>
+          <para>$config['limit']</para>
+          <para></para>
+          <para>The limit to the amount of records to display per page. Currently this affects the user list, and message logs. (<emphasis>default: 50</emphasis>)</para>
+        </listitem>
+        <listitem>
+          <para>$config['database_type']</para>
+          <para></para>
+          <para>The type of database that Bandersnatch is running on. This variable is used to construct the PEAR DB DSN, so any PEAR DB-compatible database type should work. Thus far Bandersnatch has only been tested on MySQL. (<emphasis>default: mysql</emphasis>)</para>
+        </listitem>
+        <listitem>
+          <para>$config['database_host']</para>
+          <para></para>
+          <para>The hostname of the server on which Bandersnatch's database is running. (<emphasis>default: localhost</emphasis>)</para>
+        </listitem>
+        <listitem>
+          <para>$config['database_table']</para>
+          <para></para>
+          <para>The name of Bandersnatch's database. (<emphasis>default: bandersnatch</emphasis>)</para>
+        </listitem>
+        <listitem>
+          <para>$config['database_user']</para>
+          <para></para>
+          <para>The username to use to connect to the database. (<emphasis>default: bandersnatch</emphasis>)</para>
+        </listitem>
+        <listitem>
+          <para>$config['database_password']</para>
+          <para></para>
+          <para>The password to use to connect to the database. (<emphasis>default: bandersnatch</emphasis>)</para>
+        </listitem>
+        <listitem>
+          <para>$config['local_server']</para>
+          <para></para>
+          <para>The name of your local jabber server. This is the server name which will be displayed on the Bandersnatch front page.</para>
+        </listitem>
+        <listitem>
+          <para>$config['local_domains']</para>
+          <para></para>
+          <para>An array of domains which, for the purposes of statistics, should be considered "local". For example, you might want messages to and from <emphasis>smtp.jabber.yourdomain.com</emphasis>, and <emphasis>conference.jabber.yourdomain.com</emphasis> to reflect as "<emphasis>local</emphasis>" in your stats. This list will automatically include $config['local_server'] (above).</para>
+        </listitem>
+        <listitem>
+          <para>$config['local_transports']</para>
+          <para></para>
+          <para>An associative array of transports installed on your server. The array is in the format <emphasis>transport type</emphasis> =&gt; <emphasis>transport hostname</emphasis>. Remove any transports which you do not have installed. Currently available transports are <emphasis>msn</emphasis>, <emphasis>icq</emphasis>, <emphasis>aim</emphasis>, <emphasis>yahoo</emphasis>, <emphasis>rss </emphasis>and <emphasis>groupchat</emphasis>. To add another transport type, simply add key-value pair, and update the template file accordingly.</para>
+        </listitem>
+      </itemizedlist>
+    </sect2>
+    <sect2>
+      <title>Installation</title>
+      <para>To make the frontend accessible via the web, create an alias to <filename>Bandersnatch/frontend/html:</filename></para>
+      <para>Apache example (<filename>httpd.conf</filename>):</para>
+      <screen>
+&lt;IfModule mod_alias.c&gt;        #     
+
+# Note that if you include a trailing blah blah blah...
+
+Alias /logs "/usr/local/jabber/bandersnatch/frontend/htdocs"    
+
+# More blah blah blah...
+
+&lt;/IfModule&gt;  # End of aliases.
+</screen>
+    </sect2>
+  </sect1>
+  <sect1 id="usage">
+    <title>Usage</title>
+    <para>Bandersnatch's statistics can be queried either via the component, within jabber, or with the frontend.</para>
+    <sect2>
+      <title>Querying the component</title>
+      <para>If you send a message to Bandersnatch's JID, Bandersnatch will return your usage stats for the day. If your JID is set as an "admin" (in <emphasis>config.xml</emphasis>), Bandersnatch will return the top 20 local and remote users for the day.</para>
+    </sect2>
+    <sect2>
+      <title>Querying the frontend</title>
+      <para>Bandersnatch's frontend is the recommended method of viewing statistics. Simply load the frontend to view the stats. </para>
+      <para>Bandersnatch's "home" page displays a message summary (<emphasis>total local and remote messages for the day</emphasis>), a transport summary (<emphasis>messages sent and received by each transport</emphasis>), and a user list. The user list can be sorted alphabetically by JID, or (default) by user activity. </para>
+      <para>Clicking on a user's JID (<emphasis>davidy@jabber.yourdomain.com</emphasis>) will bring up that user's stats, combining all their resources. Clicking on a user's resource (<emphasis>example: /Just Another Jabber Client</emphasis>) will bring up the "user stats" for that user with that specific resource. </para>
+      <para>You can view the jabber activity for previous days by selecting a date from the drop down list, entitled "Stats on:".</para>
+      <para>In order to view "user message logs", you must be logged in as an admin.. </para>
+    </sect2>
+    <sect2>
+      <title>Admin login</title>
+      <para>To log in as an administrator, you must have a username / password record in the "auth" table in Bandersnatch's database. The password field must be MD5 encrypted.</para>
+      <para>The default username / password combination is <emphasis>admin / 2bchanged</emphasis></para>
+      <para>Insert or update fields in the "auth" table using a SQL tool (<emphasis>phpMyAdmin - http://www.phpmyadmin.net/</emphasis>) or by manually running mysql:</para>
+      <screen><prompt>#</prompt><command> mysql -u localhost bandersnatch -u bandersnatch -p</command>
+Enter password:
+
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 1787 to server version: 3.23.51
+
+Type 'help;' or '\h' for help. Type '\c' to clear the buffer.
+
+mysql&gt; INSERT INTO `auth` ( `username` , `PASSWORD` ) 
+    -&gt; VALUES ('admin', MD5( '2bchanged' )) ;
+
+Query OK, 1 row affected (0.00 sec)
+
+mysql&gt; quit   
+</screen>
+    </sect2>
+  </sect1>
+  <sect1 id="customizing">
+    <title>Customizing</title>
+    <para>You can customize Bandersnatch either by changing the behaviour of the component (choosing which messages to log, masking private messages, etc.), or by changing the "look &amp; feel" of the frontend (Changing the fonts, inserting a company logo, etc.)</para>
+    <sect2>
+      <title>Component</title>
+      <para>The options ignore_jids, admin_jids, and local_domains have been explained above. The <emphasis>privacy </emphasis>and <emphasis>aggressive_presence</emphasis> warrant some extra explanation.</para>
+      <sect3 id="privacy">
+        <title>Privacy</title>
+        <para>Bandersnatch supports varying degrees of privacy. You may feel that you don't want to record remote usernames, or that you don't want to record any messages at all, but still collect statistics. Set your desired privacy mode in config.xml, using the &lt;privacy&gt; tag.</para>
+        <itemizedlist>
+          <listitem>
+            <para>Level 3</para>
+            <para></para>
+            <para>Remote usernames will be "masked out" and all message bodies will be masked out.</para>
+          </listitem>
+          <listitem>
+            <para>Level 2</para>
+            <para></para>
+            <para>Remote usernames will be "masked out" and all remote message bodies will be masked out. Local-to-local message bodies will still be logged.</para>
+          </listitem>
+          <listitem>
+            <para>Level 1</para>
+            <para></para>
+            <para>Remote usernames will be "masked out". All message bodies will still be logged.</para>
+          </listitem>
+          <listitem>
+            <para>Level 0</para>
+            <para></para>
+            <para>No masking. Default level</para>
+          </listitem>
+        </itemizedlist>
+      </sect3>
+      <sect3 id="aggressive_presence">
+        <title>Aggressive Presence</title>
+        <para>Unless Bandersnatch is subscribed to a user's presence (and authorized), it will only receive online / offline presence notifications via Jabber's bcc. In order for Bandersnatch to log every change of status (away, chat, DND), it must be subscribed to the user's presence.</para>
+        <para> If aggressive presence is enabled, every time a local user sends a message, Bandersnatch will check to see if it is subscribed to that user. If not, it will send a "subscribe" presence, requesting subscription. If it is subscribed, it will send a standard "available" presence. </para>
+        <para>Unless a user blacklists Bandersnatch, they will continue to receive subscription requests until they authorize subscription.</para>
+        <para> If aggressive presence is disabled, Bandersnatch will only subscribe to a user's presence if the user requests a subscription.</para>
+      </sect3>
+    </sect2>
+    <sect2 id="customizing_frontend">
+      <title>Frontend</title>
+      <para>Bandersnatch's frontend is based entirely on templates. The default template file (<filename>default.tpl.htm</filename>) is well documented. To create your own template, make a copy of <filename>default.tpl.htm</filename>, and edit the <computeroutput>$config['template']</computeroutput> value in <filename>config.inc.php</filename></para>
+    </sect2>
+  </sect1>
+  <appendix id="poem">
+    <title>Jabberwocky - The poem</title>
+    <screen>
+JABBERWOCKY
+Lewis Carroll
+(from Through the Looking-Glass and What Alice Found There, 1872) 
+
+`Twas brillig, and the slithy toves
+  Did gyre and gimble in the wabe:
+All mimsy were the borogoves,
+  And the mome raths outgrabe.
+
+"Beware the Jabberwock, my son!
+  The jaws that bite, the claws that catch!
+Beware the Jubjub bird, and shun
+  The frumious Bandersnatch!"
+
+He took his vorpal sword in hand:
+  Long time the manxome foe he sought --
+So rested he by the Tumtum tree,
+  And stood awhile in thought.
+
+And, as in uffish thought he stood,
+  The Jabberwock, with eyes of flame,
+Came whiffling through the tulgey wood,
+  And burbled as it came!
+
+One, two! One, two! And through and through
+  The vorpal blade went snicker-snack!
+He left it dead, and with its head
+  He went galumphing back.
+
+"And, has thou slain the Jabberwock?
+  Come to my arms, my beamish boy!
+O frabjous day! Callooh! Callay!'
+  He chortled in his joy.
+
+`Twas brillig, and the slithy toves
+  Did gyre and gimble in the wabe;
+All mimsy were the borogoves,
+  And the mome raths outgrabe
+</screen>
+  </appendix>
+</article>

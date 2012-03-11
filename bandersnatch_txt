@@ -1,0 +1,469 @@
+#!/usr/bin/perl -W
+
+#__________________________________________
+#                                          |
+#   |~|_        -- Funky Penguin --        |
+#   o-o    Corporate GNU/Linux Solutions   |
+#   /V\                                    |
+#  // \\                                   |
+# /(   )\  ..Work smarter, not harder..    |
+#  ^-~-^     [www.funkypenguin.co.za]      |
+###########################################|
+
+# Bandersnatch - A jabber logger and statistics reporter
+#
+# Bandersnatch is an external Jabber (www.jabber.org) component that logs
+# all messages sent to it into a DBI-compatible database. It has a rudimentary
+# jabber interface. (Sending a jabber message to the component will ellicit your
+# current stats).
+#
+# Bandersnatch's real usefulness is in it's PHP-based web frontend. From that
+# interface it's possible to view remote vs. local usage, individual tranport
+# usage, etc. FIXME
+
+###############################################################################
+#               Bandersnatch - Jabber logger and statistics reporter          #
+#          Copyright (C) 2003, David Young <davidy@funkypenguin.co.za>        #
+#                                                                             #
+#  This program is free software; you can redistribute it and/or modify it    #
+#  under the terms of the GNU General Public License as published by the Free #
+#  Software Foundation; either version 2 of the License, or (at your option)  #
+#  any later version.                                                         #
+#                                                                             #
+#  This program is distributed in the hope that it will be useful, but        #
+#  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY #
+#  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License   #
+#  for more details.                                                          #
+#                                                                             #
+#  You should have received a copy of the GNU General Public License along    #
+#  with this program; if not, write to the Free Software Foundation, Inc.,    #
+# 	59 Temple Place, Suite 330, Boston, MA 02111-1307 USA                 #
+#                                                                             #
+###############################################################################
+my $VERSION = "0.4";
+
+# +----------------------------------------------------------------------------+
+# | Declare Global Variables                                                   |
+# +----------------------------------------------------------------------------+
+my %config;
+my $prevmessage = ""; # for catching duplicate messages
+my @routes;
+my $timer;
+my $status;
+
+
+# Clean path whenever you use taint checks (Make %ENV safer)
+$ENV{'PATH'} = "";
+delete @ENV{qw(IFS CDPATH ENV BASH_ENV)};
+
+# Set up vars
+my $config_file = $ARGV[0];
+my $configdir = ".";
+my $config;
+
+# Check user input
+if(defined $config_file)
+{
+  # Untaint by stripping any bad characters, see "perlsec" man page.
+  $config_file =~ /^([-\w.\/]+)$/ or die "Bad characters found\n\n";
+  $config_file = $1;
+}
+
+else
+{
+  $config_file = "$configdir/config.xml";
+}
+
+
+# +----------------------------------------------------------------------------+
+# | Load Modules                                                               |
+# +----------------------------------------------------------------------------+
+use strict;
+use Net::Jabber qw(Component);
+use XML::Stream qw(Tree);
+use Log::Dispatch::File;
+use Log::Dispatch::Screen;
+use Getopt::Long;
+
+# +----------------------------------------------------------------------------+
+# | Load Configuration                                                         |
+# +----------------------------------------------------------------------------+
+&loadConfig();
+
+# +----------------------------------------------------------------------------+
+# | Initialize Debug System                                                    |
+# +----------------------------------------------------------------------------+
+my $sub = sub {
+
+	my %hash = @_;
+	my $message = $hash{message};
+	my $date = localtime();
+	my $content = "[$date] $message \n";
+
+	return $content;
+};
+
+my $debug = new Net::Jabber::Debug
+  (
+    level => $config{debug}->{level},
+    header => "Bandersnatch",
+    time => 1,
+    file => $config{debug}->{file}
+  );
+
+my $debugger = Log::Dispatch->new(callbacks => $sub);
+
+$debugger->add (Log::Dispatch::File->new( name      => 'file1',
+                                  min_level => 'info',
+                                  filename  => 'bandersnatch.log',
+                                  mode      => 'append' ));
+$debugger->add (Log::Dispatch::Screen->new( name      => 'screen1',
+                                  min_level => 'info',
+                                  stderr      => '1' ));
+
+
+
+# +----------------------------------------------------------------------------+
+# | Declare Signal Intercepts                                                  |
+# +----------------------------------------------------------------------------+
+# | Configure a subroutine to be called when a HUP, KILL, TERM, or INT signal  |
+# | is received so that we may shut things down gracefully.                    |
+# +----------------------------------------------------------------------------+
+$SIG{HUP} = \&Shutdown;
+$SIG{KILL} = \&Shutdown;
+$SIG{TERM} = \&Shutdown;
+$SIG{INT} = \&Shutdown;
+
+# +----------------------------------------------------------------------------+
+# | Create Component                                                           |
+# +----------------------------------------------------------------------------+
+my $component = new Net::Jabber::Component(debuglevel=>$config{debug}->{level});
+
+$component->SetCallBacks
+  (
+    receive => \&receiveCB,
+  );
+
+# +----------------------------------------------------------------------------+
+# | Connect to Jabber Server                                                   |
+# +----------------------------------------------------------------------------+
+if (!connectJabber())
+{
+$debugger->emergency("(ERROR)  Unable to connect to Jabber server ($config{server}->{hostname}) ...");
+$debugger->info("        (".$component->GetErrorCode(),")"); 
+  exit(0);
+}
+
+$debugger->info("Connected to Jabber server ($config{server}->{hostname}) ...");
+
+
+if (($config{server}->{connectiontype} eq "tcpip") || ($config{server}->{connectiontype} eq "accept"))
+{
+       $status = $component->Execute(hostname      => $config{server}->{hostname},
+                                                                       port       => $config{server}->{port},
+                                                                      secret       => $config{server}->{secret},
+                                                                      componentname => $config{component}->{name});
+  }
+
+
+$debugger->info("Something's wrong.. dying.. arg! ...");
+exit(0);
+
+# +----------------------------------------------------------------------------+
+# | Load Configuration Settings                                                |
+# +----------------------------------------------------------------------------+
+sub loadConfig
+{
+  my $parser = new XML::Stream::Parser(style=>"Tree");
+  my @tree = $parser->parsefile($config_file);
+
+# +------------------------------------------------------------------------+
+# | Jabber Server Settings                                                 |
+# +------------------------------------------------------------------------+
+  my @serverTree = &XML::Stream::GetXMLData("tree", $tree[0], "server", "", "");
+  $config{server}->{hostname} = &XML::Stream::GetXMLData("value", \@serverTree, "hostname", "", "");
+  $config{server}->{port} = &XML::Stream::GetXMLData("value", \@serverTree, "port", "", "");
+  $config{server}->{secret} = &XML::Stream::GetXMLData("value", \@serverTree, "secret", "", "");
+  $config{server}->{connectiontype} = &XML::Stream::GetXMLData("value", \@serverTree, "connectiontype", "", "");
+  $config{server}->{connectiontype} = "tcpip" if ($config{server}->{connectiontype} eq "");
+
+# +------------------------------------------------------------------------+
+# | Component Settings                                                     |
+# +------------------------------------------------------------------------+
+  my @componentTree = &XML::Stream::GetXMLData("tree", $tree[0], "component", "", "");
+  $config{component}->{name} = &XML::Stream::GetXMLData("value", \@componentTree, "name", "", "");
+
+# +------------------------------------------------------------------------+
+# | Database Settings                                                      |
+# +------------------------------------------------------------------------+
+  my @mysqlTree = &XML::Stream::GetXMLData("tree", $tree[0], "mysql", "", "");
+  $config{mysql}->{server} = &XML::Stream::GetXMLData("value", \@mysqlTree, "server", "", "");
+  $config{mysql}->{dbname} = &XML::Stream::GetXMLData("value", \@mysqlTree, "dbname", "", "");
+  $config{mysql}->{username} = &XML::Stream::GetXMLData("value", \@mysqlTree, "username", "", "");
+  $config{mysql}->{password} = &XML::Stream::GetXMLData("value", \@mysqlTree, "password", "", "");
+
+# +------------------------------------------------------------------------+
+# | Debug Settings                                                         |
+# +------------------------------------------------------------------------+
+  my @debugTree = &XML::Stream::GetXMLData("tree", $tree[0], "debug", "", "");
+  $config{debug}->{level} = &XML::Stream::GetXMLData("value", \@debugTree, "level", "", "");
+  $config{debug}->{file} = &XML::Stream::GetXMLData("value", \@debugTree, "file", "", "");
+
+# +------------------------------------------------------------------------+
+# | Site Settings                                                         |
+# +------------------------------------------------------------------------+
+  my @siteTree = &XML::Stream::GetXMLData("tree", $tree[0], "site", "", "");
+  $config{site}->{local_server} = &XML::Stream::GetXMLData("value", \@siteTree, "local_server", "", "");
+  $config{site}->{privacy} = &XML::Stream::GetXMLData("value", \@siteTree, "privacy", "", "");
+  $config{site}->{aggressive_presence} = &XML::Stream::GetXMLData("value", \@siteTree, "aggressive_presence", "", "");
+  my @admin_jids = &XML::Stream::GetXMLData("value array", \@siteTree, "admin_jids", "", "");
+  $config{site}->{admin_jids} = \@admin_jids;
+  my @confidential_jids = &XML::Stream::GetXMLData("value array", \@siteTree, "confidential_jids", "", "");
+  $config{site}->{confidential_jids} = \@confidential_jids;
+  my @ignore_jids = &XML::Stream::GetXMLData("value array", \@siteTree, "ignore_jids", "", "");
+  my @local_domains = &XML::Stream::GetXMLData("value array", \@siteTree, "local_domains", "", "");
+
+##################################
+# check that local_domains contains the value of local_server. If not, put it in :)
+##################################
+  my $local_server = $config{site}->{local_server};
+  my $found_in_array;
+
+  foreach my $domain (@local_domains)
+  {
+
+    if ($domain =~ /^$local_server/)
+    {
+      $found_in_array = 1;
+    }
+  }
+
+  if (!$found_in_array)
+  {
+    push(@local_domains,$local_server);
+  }
+  $config{site}{local_domains} = \@local_domains;
+
+##################################
+# check that ignore_jids contains the name of component. If not, put it in :)
+##################################
+  my $component_name = $config{component}->{name};
+  $found_in_array = 0;
+
+  foreach my $jid (@ignore_jids)
+  {
+
+    if ($jid =~ /^$component_name/)
+    {
+    $found_in_array = 1;
+    }
+  }
+
+  if (!$found_in_array)
+  {
+    push(@ignore_jids,$component_name);
+  }
+  $config{site}{ignore_jids} = \@ignore_jids;
+  $parser->{HANDLER}->{startDocument} = undef;
+  $parser->{HANDLER}->{endDocument}   = undef;
+  $parser->{HANDLER}->{startElement}  = undef;
+  $parser->{HANDLER}->{endElement}    = undef;
+  $parser->{HANDLER}->{characters}    = undef;
+}
+
+# +----------------------------------------------------------------------------+
+# | Parse <route> XML data                                                     |
+# +----------------------------------------------------------------------------+
+sub parseroute
+{
+  my $rawxml = shift;
+  my %message;
+  my $parser = new XML::Stream::Parser(style=>"Tree");
+  my @tree = $parser->parse($rawxml);
+
+# +------------------------------------------------------------------------+
+# | Message encapsulated                                                   |
+# | in <route> envelope (http://www.jabber.org/protocol/coredata.html)     |
+# +------------------------------------------------------------------------+
+  my @messageTree = &XML::Stream::GetXMLData("tree", $tree[0], "message", "", "");
+  $message{'to'} = &XML::Stream::GetXMLData("value", \@messageTree, "", "to", "");
+  $message{'from'} = &XML::Stream::GetXMLData("value", \@messageTree, "", "from", "");
+  $message{'id'} = &XML::Stream::GetXMLData("value", \@messageTree, "", "id", "");
+  $message{'type'} = &XML::Stream::GetXMLData("value", \@messageTree, "", "type", "");
+  $message{'body'} = &XML::Stream::GetXMLData("value", \@messageTree, "body", "", "");		
+  $message{'subject'} = &XML::Stream::GetXMLData("value", \@messageTree, "subject", "", "");			
+  $message{'thread'} = &XML::Stream::GetXMLData("value", \@messageTree, "thread", "", "");			
+  $message{'error'} = &XML::Stream::GetXMLData("value", \@messageTree, "error", "", "");		
+  $message{'errorcode'}	= &XML::Stream::GetXMLData("value", \@messageTree, "error", "code", "");
+  $parser->{HANDLER}->{startDocument} = undef;
+  $parser->{HANDLER}->{endDocument} = undef;
+  $parser->{HANDLER}->{startElement} = undef;
+  $parser->{HANDLER}->{endElement} = undef;
+  $parser->{HANDLER}->{characters} = undef;
+  return %message;
+}
+
+#__________________________________________
+#                                          |
+#   |~|_        -- Funky Penguin --        |
+#   o-o    Corporate GNU/Linux Solutions   |
+#   /V\                                    |
+#  // \\                                   |
+# /(   )\  ..Work smarter, not harder..    |
+#  ^-~-^     [www.funkypenguin.co.za]      |
+###########################################|
+# Function   : receiveCB
+# Purpose    : Function for the "receive-type" callback. Receives everything in raw XML
+# Notes      : Jabber sends data to bandersnatch encased in <route> tags, so Net::Jabber can't
+#              readily parse it into an object. So we parse it ourselves.
+##########################################*/
+sub receiveCB
+{
+  my $sid = shift;
+  my $xmldata = shift;
+  my %message = parseroute($xmldata);
+  my $content;
+  my $is_local = 0;
+
+  return if (!$message{'body'}); # Don't log empty messages, or "non-<message>" messages :)
+
+  # Avoid getting "double messages". Rather not modify mod_log.c
+  my $currentmessage = $message{'to'}.$message{'from'}.$message{'thread'}.$message{'body'}.$message{'error'};
+  return if ($currentmessage eq $prevmessage);
+  $prevmessage = $currentmessage;	
+
+  # Ignorable JIDs. (Certain "noisy" chatbot services come to mind!)
+  foreach my $ignoreable_jid (@{$config{site}{ignore_jids}})
+  {
+    if (($message{'to'} =~ /$ignoreable_jid/) || ($message{'from'} =~ /$ignoreable_jid/))
+    {
+      $debugger->debug("receiveCB: ignoring ($ignoreable_jid)");
+      return;
+    }
+  }
+
+############# Mask confidential messages ########################
+  my $to_local;
+  my $from_local;
+
+  foreach my $confidential_jid (@{$config{site}{confidential_jids}})
+  {
+    $to_local = $confidential_jid if ($message{'to'} =~ /$confidential_jid/);
+    $from_local = $confidential_jid if ($message{'from'} =~ /$confidential_jid/);
+  }
+
+  if (($to_local) && ($from_local))
+  {
+    $message{'body'} = "Confidential ($from_local --> $to_local)";
+  }
+
+############# Mask depending on privacy level ########################
+  $to_local = "";
+  $from_local = "";
+
+  if ($config{site}{privacy} == 3)
+  {
+    foreach my $local_domain (@{$config{site}{local_domains}})
+    {
+      $to_local = $1 if ($message{'to'} =~ /([^@]+)\@$local_domain/);
+      $from_local = $1 if ($message{'from'} =~ /([^@]+)\@$local_domain/);
+    }
+    $message{'to'} =~ s/([^@]+)(\@.*)/privacy-level-3$2/ if (!$to_local);
+    $message{'from'} =~ s/([^@]+)(\@.*)/privacy-level-3$2/ if (!$from_local);
+    $message{'body'} = "privacy-level-3";
+  }
+
+  elsif ($config{site}{privacy} == 2)
+  {
+    foreach my $local_domain (@{$config{site}{local_domains}})
+    {
+      $to_local = $1 if ($message{'to'} =~ /([^@]+)\@$local_domain/);
+      $from_local = $1 if ($message{'from'} =~ /([^@]+)\@$local_domain/);
+    }
+    $message{'to'} =~ s/([^@]+)(\@.*)/privacy-level-2$2/ if (!$to_local);
+    $message{'from'} =~ s/([^@]+)(\@.*)/privacy-level-2$2/ if (!$from_local);
+    $message{'body'} = "privacy-level-2" if ((!$from_local) || (!$to_local));
+  }
+  elsif ($config{site}{privacy} == 1)
+  {
+    foreach my $local_domain (@{$config{site}{local_domains}})
+    {
+      $to_local = $1 if ($message{'to'} =~ /([^@]+)\@$local_domain/);
+      $from_local = $1 if ($message{'from'} =~ /([^@]+)\@$local_domain/);
+    }
+    $message{'to'} =~ s/([^@]+)(\@.*)/privacy-level-1$2/ if (!$to_local);
+    $message{'from'} =~ s/([^@]+)(\@.*)/privacy-level-1$2/ if (!$from_local);
+  }
+
+############# End Mask depending on privacy level ########################
+
+  $content .= "\nFrom: ". $message{'from'}. "\n";
+  $content .= "To: ". $message{'to'}. "\n";
+  $content .= "Subject: ". $message{'subject'}. "\n";
+  $content .= "---\n". $message{'body'}. "\n---\n\n";
+
+  $debugger->info($content);
+
+}
+
+
+# +----------------------------------------------------------------------------+
+# | Connect to Jabber Server                                                   |
+# +----------------------------------------------------------------------------+
+sub connectJabber
+{
+  if (($config{server}->{connectiontype} eq "tcpip") || ($config{server}->{connectiontype} eq "accept"))
+  {
+    $status = $component->Connect
+    (
+      hostname => $config{server}->{hostname},
+      port => $config{server}->{port},
+      secret => $config{server}->{secret},
+      componentname => $config{component}->{name}
+    );
+  }
+
+  if (($config{server}->{connectiontype} eq "stdinout") || ($config{server}->{connectiontype} eq "exec"))
+    {
+      $status = $component->Connect(connectiontype=>"exec");
+    }
+
+  if (!defined($status))
+  {
+    return 0; 
+  }
+
+  timerStart();
+  return 1;
+}
+
+
+# +----------------------------------------------------------------------------+
+# | Start Uptime Timer                                                         |
+# +----------------------------------------------------------------------------+
+sub timerStart
+{
+  $timer = time();
+  return 1;
+}
+
+# +----------------------------------------------------------------------------+
+# | Get Elapsed Time                                                           |
+# +----------------------------------------------------------------------------+
+sub timerValue
+{
+  return time() - $timer;
+}
+
+# +----------------------------------------------------------------------------+
+# | Handle Shutdown Gracefully                                                 |
+# +----------------------------------------------------------------------------+
+sub Shutdown
+{
+  $debugger->info("Disconnecting from Jabber server ($config{server}->{hostname}) ...");
+  $debugger->info("Ran for ". timerValue());
+  $component->Disconnect();
+  exit(0);
+}
+
+
